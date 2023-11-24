@@ -1,0 +1,24 @@
+name: Sync to Public Repository
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Git with GitHub Actions user
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Push changes to the public repository
+        run: |
+          git remote remove origin
+          git remote add public https://${{ secrets.GH_PAT }}:x-oauth-basic@${{ secrets.PUBLIC_REPO_URL }}
+          git push public feature/sync
