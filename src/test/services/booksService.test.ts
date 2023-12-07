@@ -249,7 +249,7 @@ describe('Book service', () => {
         bookIds,
         false
       )
-      expect(result).toBe(false)
+      expect(result).toEqual([{ ...convertedPopulatedBookData[0], __v: 0 }])
     })
   })
 
