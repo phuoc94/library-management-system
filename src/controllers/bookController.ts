@@ -68,6 +68,15 @@ const getAllBookCopies = async (_: Request, res: Response): Promise<void> => {
   res.json(books)
 }
 
+const getBookCopiesWithBookId = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const bookId = req.params.id
+  const books = await BooksServices.getCopiesByBookId(bookId)
+  res.json(books)
+}
+
 const filterByQuery = async (
   req: Request,
   res: Response,
@@ -242,6 +251,7 @@ export default {
   getBookById,
   getBookByISBN,
   getAllBookCopies,
+  getBookCopiesWithBookId,
   getUserBorrowHistory,
   filterByQuery,
   createNewBook,

@@ -271,6 +271,12 @@ const getAllCopies = async (): Promise<BookCopy[]> => {
   return books as BookCopy[]
 }
 
+const getCopiesByBookId = async (bookId: string): Promise<BookCopy[]> => {
+  const id = new Types.ObjectId(bookId)
+  const books = await CopiesBookRepo.find({ book_id: id }).exec()
+  return books as BookCopy[]
+}
+
 const createOne = async (
   payload: AtleastOne<Book, 'ISBN'>
 ): Promise<Book | undefined> => {
@@ -588,6 +594,7 @@ export default {
   getFilteredBook,
   getOneByISBN,
   getOneById,
+  getCopiesByBookId,
   getAllCopies,
   getHistory,
   createOne,
