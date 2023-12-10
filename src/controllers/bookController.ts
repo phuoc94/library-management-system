@@ -145,7 +145,7 @@ const borrowBookById = async (
   )
 
   if (result === false) {
-    next(ApiError.notFound('Book not found or available to borrow'))
+    next(ApiError.notFound('Book not available to borrow'))
     return
   }
 
@@ -154,7 +154,12 @@ const borrowBookById = async (
     return
   }
 
-  res.json(result)
+  if (result === true) {
+    res.sendStatus(200)
+    return
+  }
+
+  res.status(404).json(result)
 }
 
 const returnBookById = async (
@@ -170,7 +175,7 @@ const returnBookById = async (
   )
 
   if (result === false) {
-    next(ApiError.notFound('Book not found or available to return'))
+    next(ApiError.notFound('Book not available to return'))
     return
   }
 
@@ -179,7 +184,12 @@ const returnBookById = async (
     return
   }
 
-  res.json(result)
+  if (result === true) {
+    res.sendStatus(200)
+    return
+  }
+
+  res.status(404).json(result)
 }
 
 const deleteBookById = async (
