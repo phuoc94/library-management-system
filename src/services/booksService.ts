@@ -282,6 +282,11 @@ const createOne = async (
 ): Promise<Book | undefined> => {
   const newBook = new BooksRepo(payload)
   const result = await newBook.save()
+
+  if (result !== undefined) {
+    await createOneCopy(result.id)
+  }
+
   return result as Book | undefined
 }
 
