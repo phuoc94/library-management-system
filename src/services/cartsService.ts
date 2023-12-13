@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-import { type PopulatedCartItem, type CartItem } from '../types/CartItem.js'
+import { type CartItem } from '../types/CartItem.js'
 import CartsRepo from '../models/cartsModel.js'
 import CartItemRepo from '../models/cartItemModel.js'
 import { type Cart } from '../types/Cart.js'
@@ -18,7 +18,7 @@ async function getAllCartItems(): Promise<CartItem[]> {
 
 async function getCartByUserId(
   userId: string
-): Promise<PopulatedCartItem[] | null | Error> {
+): Promise<CartItem | null | Error> {
   try {
     const id = new mongoose.Types.ObjectId(userId)
     const cart = await CartsRepo.findOne({ user_id: id })
@@ -73,7 +73,7 @@ async function getCartByUserId(
       },
     ])
 
-    return cartItems as PopulatedCartItem[]
+    return cartItems[0] as CartItem
   } catch (e) {
     const err = e as Error
     return err
@@ -127,25 +127,30 @@ async function removeFromCart({
 }: {
   userId: string
   bookId: string
-}): Promise<boolean | Error> {
+}): Promise<CartItem | null | Error> {
   try {
     const id = new mongoose.Types.ObjectId(userId)
     const cart = await CartsRepo.findOne({ user_id: id })
 
     if (cart !== null) {
       const cartId = cart._id
-      const cartItem = await CartItemRepo.findOne({
-        cart_id: cartId,
-        book_id: new mongoose.Types.ObjectId(bookId),
-      })
 
-      if (!(cartItem instanceof Error || cartItem === null)) {
-        await cartItem.deleteOne()
-        return true
-      }
+      const res = await CartItemRepo.findOneAndUpdate(
+        { cart_id: cartId },
+        {
+          $pull: {
+            books: new mongoose.Types.ObjectId(bookId),
+          },
+        },
+        {
+          new: true,
+        }
+      )
+
+      return res as CartItem | null
     }
 
-    return false
+    return cart
   } catch (e) {
     const err = e as Error
     return err
@@ -180,15 +185,12 @@ async function checkout(userId: string): Promise<boolean | Error> {
       const cartId = cart._id
 
       // find list of books in the cart
-      const cartItems = await CartItemRepo.find({ cart_id: cartId }).exec()
+      const cartItem = await CartItemRepo.find({ cart_id: cartId }).exec()
 
       // get all book_id of books
-      const bookIds: string[] = []
-      cartItems.forEach((item) => {
-        if (item.books != null) {
-          bookIds.push(String(item.books))
-        }
-      })
+      const bookIds: string[] = cartItem[0].books.map((book) =>
+        String(book._id)
+      )
 
       // update the availability status for the books
       const res = await BooksService.updateMultiAvailableStatus(
@@ -202,7 +204,7 @@ async function checkout(userId: string): Promise<boolean | Error> {
       }
 
       // delete all the books in cart
-      await CartItemRepo.deleteMany({ cart_id: cartId })
+      await CartItemRepo.deleteOne({ cart_id: cartId })
 
       // delete cart of user
       await cart.deleteOne()
