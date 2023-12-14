@@ -42,6 +42,15 @@ const getAll = async (): Promise<PopulatedBook[]> => {
         as: 'category',
       },
     },
+    {
+      $lookup: {
+        from: 'copiesbooks',
+        localField: '_id',
+        foreignField: 'book_id',
+        pipeline: [{ $match: { is_Available: true } }, { $count: 'total' }],
+        as: 'availableCopies',
+      },
+    },
   ])
 
   return books as PopulatedBook[]
@@ -152,6 +161,15 @@ const getFilteredBook = async (
               ],
             },
           ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'copiesbooks',
+          localField: '_id',
+          foreignField: 'book_id',
+          pipeline: [{ $match: { is_Available: true } }, { $count: 'total' }],
+          as: 'availableCopies',
         },
       },
       {
