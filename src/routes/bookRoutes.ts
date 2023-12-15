@@ -82,6 +82,9 @@ router.get('/:id', BookController.getBookById)
 // Get Book with given ISBN
 router.get('/ISBN/:ISBN', BookController.getBookByISBN)
 
+// Get Book copy with given book id
+router.get('/copy/:id', BookController.getBookCopiesWithBookId)
+
 // Create new Book (require admin auth)
 router.post(
   '/',
@@ -91,6 +94,9 @@ router.post(
   validateDuplication,
   BookController.createNewBook
 )
+
+//
+// router.post('/all', BookController.createCopies)
 
 // Create new Book copy with given id
 router.post(

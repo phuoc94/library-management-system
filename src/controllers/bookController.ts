@@ -68,6 +68,15 @@ const getAllBookCopies = async (_: Request, res: Response): Promise<void> => {
   res.json(books)
 }
 
+const getBookCopiesWithBookId = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const bookId = req.params.id
+  const books = await BooksServices.getCopiesByBookId(bookId)
+  res.json(books)
+}
+
 const filterByQuery = async (
   req: Request,
   res: Response,
@@ -97,6 +106,20 @@ const createNewBook = async (
     ? next(ApiError.badRequest('Bad request.'))
     : res.status(201).json(result)
 }
+
+// const createCopies = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ): Promise<void> => {
+//   const books = await BooksServices.getAll()
+//   if (books.length > 0) {
+//     books.forEach(async (book) => {
+//       await BooksServices.createOneCopy(String(book._id))
+//     })
+//   }
+//   res.sendStatus(200)
+// }
 
 const createNewCopy = async (
   req: Request,
@@ -145,7 +168,7 @@ const borrowBookById = async (
   )
 
   if (result === false) {
-    next(ApiError.notFound('Book not found or available to borrow'))
+    next(ApiError.notFound('Book not available to borrow'))
     return
   }
 
@@ -154,7 +177,12 @@ const borrowBookById = async (
     return
   }
 
-  res.json(result)
+  if (result === true) {
+    res.sendStatus(200)
+    return
+  }
+
+  res.status(404).json(result)
 }
 
 const returnBookById = async (
@@ -170,7 +198,7 @@ const returnBookById = async (
   )
 
   if (result === false) {
-    next(ApiError.notFound('Book not found or available to return'))
+    next(ApiError.notFound('Book not available to return'))
     return
   }
 
@@ -179,7 +207,12 @@ const returnBookById = async (
     return
   }
 
-  res.json(result)
+  if (result === true) {
+    res.sendStatus(200)
+    return
+  }
+
+  res.status(404).json(result)
 }
 
 const deleteBookById = async (
@@ -232,8 +265,10 @@ export default {
   getBookById,
   getBookByISBN,
   getAllBookCopies,
+  getBookCopiesWithBookId,
   getUserBorrowHistory,
   filterByQuery,
+  // createCopies,
   createNewBook,
   createNewCopy,
   updateBookInfo,

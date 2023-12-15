@@ -42,7 +42,26 @@ const getAll = async (): Promise<PopulatedBook[]> => {
         as: 'category',
       },
     },
+    {
+      $lookup: {
+        from: 'copiesbooks',
+        localField: '_id',
+        foreignField: 'book_id',
+        pipeline: [
+          { $match: { is_Available: true } },
+          { $count: 'total' },
+          { $project: { total: { $ifNull: ['$total', 0] } } },
+        ],
+        as: 'availableCopies',
+      },
+    },
   ])
+
+  books.forEach((data: any) => {
+    if (data.availableCopies.length === 0) {
+      data.availableCopies.push({ total: 0 })
+    }
+  })
 
   return books as PopulatedBook[]
 }
@@ -155,6 +174,19 @@ const getFilteredBook = async (
         },
       },
       {
+        $lookup: {
+          from: 'copiesbooks',
+          localField: '_id',
+          foreignField: 'book_id',
+          pipeline: [
+            { $match: { is_Available: true } },
+            { $count: 'total' },
+            { $project: { total: { $ifNull: ['$total', 0] } } },
+          ],
+          as: 'availableCopies',
+        },
+      },
+      {
         $sort: {
           [sortBy]: sortOrder,
         },
@@ -166,6 +198,12 @@ const getFilteredBook = async (
         },
       },
     ])
+
+    result[0].data.forEach((data: any) => {
+      if (data.availableCopies.length === 0) {
+        data.availableCopies.push({ total: 0 })
+      }
+    })
 
     return {
       data: result[0].data,
@@ -272,6 +310,12 @@ const getAllCopies = async (): Promise<BookCopy[]> => {
   return books as BookCopy[]
 }
 
+const getCopiesByBookId = async (bookId: string): Promise<BookCopy[]> => {
+  const id = new Types.ObjectId(bookId)
+  const books = await CopiesBookRepo.find({ book_id: id }).exec()
+  return books as BookCopy[]
+}
+
 const createOne = async (
   payload: AtleastOne<Book, 'ISBN'>
 ): Promise<Book | undefined> => {
@@ -351,25 +395,59 @@ const updateMultiAvailableStatus = async (
   userId: string,
   bookIds: string[],
   newStatus: boolean
-): Promise<boolean | Error> => {
+): Promise<boolean | Error | PopulatedBook[]> => {
+  const count: Record<string, any> = {}
+
+  for (const bookId of bookIds) {
+    count[bookId] = count[bookId] === undefined ? 1 : count[bookId] + 1
+  }
+
   const session = await mongoose.startSession()
   session.startTransaction()
 
   try {
+    let availableCheck = true
+    const availableBooks = []
+    const unavailableBooks: PopulatedBook[] = []
+    const checkedId: Record<string, any> = {}
+
     for (const bookId of bookIds) {
       const copiesBook = await CopiesBookRepo.find({
         book_id: bookId,
         is_Available: !newStatus,
       })
 
-      if (copiesBook.length === 0) {
-        return false
-      }
+      if (copiesBook.length < count[bookId]) {
+        const unavailableBook = await getOneById(bookId)
+        if (
+          unavailableBooks.find(
+            (e) =>
+              JSON.stringify(e) ===
+              JSON.stringify(unavailableBook as PopulatedBook)
+          ) === undefined
+        ) {
+          unavailableBooks.push(unavailableBook as PopulatedBook)
+        }
 
+        availableCheck = false
+      } else {
+        checkedId[bookId] =
+          checkedId[bookId] === undefined ? 0 : checkedId[bookId] + 1
+        availableBooks.push(copiesBook[checkedId[bookId]])
+      }
+    }
+
+    console.log(unavailableBooks)
+
+    if (!availableCheck) {
+      return unavailableBooks
+    }
+
+    for (const book of availableBooks) {
       let selectedCopyId: mongoose.Types.ObjectId
 
       if (!newStatus) {
-        selectedCopyId = copiesBook[0]._id
+        selectedCopyId = book._id
 
         const newBorrowBook = new BorrowedBookRepo({
           user_id: userId,
@@ -382,7 +460,7 @@ const updateMultiAvailableStatus = async (
         const availableBooks = await CopiesBookRepo.aggregate([
           {
             $match: {
-              book_id: new mongoose.Types.ObjectId(bookId),
+              book_id: book.book_id,
               is_Available: false,
             },
           },
@@ -560,6 +638,7 @@ export default {
   getFilteredBook,
   getOneByISBN,
   getOneById,
+  getCopiesByBookId,
   getAllCopies,
   getHistory,
   createOne,
